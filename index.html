@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Salidas – Landscape</title>
+<style>
+  :root {
+    --bg: #000;
+    --fg: #f5f5f5;
+    --muted: #9aa0a6;
+    --accent: #e8eaed;
+    --card: #0d0d0d;
+    --pill: #151515;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans";
+  }
+  .page {
+    min-height: 100%;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: 12px;
+    padding: 18px 22px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    align-items: stretch;
+  }
+  @media (orientation: portrait) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .dir {
+    background: var(--card);
+    border: 1px solid #1f1f1f;
+    border-radius: 18px;
+    padding: 14px;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 260px;
+  }
+  .dir h2 {
+    margin: 0 0 8px 0;
+    font-size: clamp(16px, 2vw, 20px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .list {
+    display: grid;
+    gap: 12px;
+  }
+  .item {
+    display: grid;
+    grid-template-columns: clamp(90px, 14vw, 180px) 1fr auto;
+    gap: 12px;
+    align-items: center;
+    background: linear-gradient(180deg, #0f0f0f, #0a0a0a);
+    border: 1px solid #222;
+    border-radius: 14px;
+    padding: clamp(10px, 1.2vw, 14px);
+  }
+  .eta-big {
+    font-size: clamp(36px, 10vw, 96px);
+    line-height: 0.9;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .eta-suffix {
+    display: block;
+    font-size: clamp(12px, 1.6vw, 16px);
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: .4px;
+  }
+  .line-and-dest {
+    display: grid;
+    gap: 6px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 28px;
+    border-radius: 6px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    font-weight: 700;
+    font-size: clamp(14px, 2vw, 18px);
+    padding: 0 8px;
+    margin-right: 8px;
+  }
+  .dest {
+    font-size: clamp(16px, 2.2vw, 26px);
+    font-weight: 600;
+  }
+  .sched {
+    font-size: clamp(12px, 1.6vw, 16px);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  footer {
+    color: var(--muted);
+    font-size: clamp(12px, 1.4vw, 14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 4px;
+  }
+  .pill {
+    background: var(--pill);
+    color: var(--accent);
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid #232323;
+  }
+  .error {
+    border: 1px solid #3a1a1a;
+    background: #1a0f0f;
+    color: #ffbcbc;
+    padding: 10px 12px;
+    border-radius: 12px;
+    margin-top: 8px;
+    font-size: clamp(12px, 1.4vw, 14px);
+  }
+  .skeleton { opacity: .65; animation: pulse 1.3s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:.65 } 50% { opacity:.35 } }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="grid" id="grid">
+      <section class="dir">
+        <h2 id="dir-a">Dirección A</h2>
+        <div class="list" id="list-a"></div>
+      </section>
+      <section class="dir">
+        <h2 id="dir-b">Dirección B</h2>
+        <div class="list" id="list-b"></div>
+      </section>
+    </div>
+
+    <footer>
+      <div id="lastAge" class="pill">Actualizado hace —</div>
+    </footer>
+  </div>
+
+<script>
+const cfg = {
+  stopQuery: "Rotkopfweg",
+  maxPerDirection: 3,
+  lookAheadMinutes: 60,
+  refreshMs: 30_000,
+};
+
+const API_PRIMARY = "https://v6.bvg.transport.rest";
+const API_FALLBACK = "https://v6.vbb.transport.rest";
+
+const els = {
+  listA: document.getElementById('list-a'),
+  listB: document.getElementById('list-b'),
+  dirA: document.getElementById('dir-a'),
+  dirB: document.getElementById('dir-b'),
+  errors: document.getElementById('errors'),
+  lastAge: document.getElementById('lastAge')
+};
+
+let lastRefreshTs = Date.now();
+
+function fmtTime(t) {
+  const d = new Date(t);
+  return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+function minutesUntil(t) {
+  return Math.max(0, Math.round((new Date(t).getTime() - Date.now()) / 60000));
+}
+function updateAgeTicker() {
+  const secs = Math.max(0, Math.round((Date.now() - lastRefreshTs) / 1000));
+  els.lastAge.textContent = `Actualizado hace ${secs}s`;
+}
+updateAgeTicker(); setInterval(updateAgeTicker, 1000);
+
+async function findStopIdsByName(name, apiBase) {
+  const url = `${apiBase}/locations?query=${encodeURIComponent(name)}&results=10&stops=true&addresses=false&poi=false&pretty=false`;
+  const res = await fetch(url, {cache: "no-store"});
+  if (!res.ok) throw new Error(`findStopIdsByName ${apiBase}: ${res.status}`);
+  const arr = await res.json();
+  const ids = arr
+    .filter(x => x.type === 'stop' && (x.name?.toLowerCase() || "").includes(name.toLowerCase()))
+    .map(x => x.id);
+  if (ids.length === 0) {
+    const anyStops = arr.filter(x => x.type === 'stop').map(x => x.id);
+    return [...new Set(anyStops)].slice(0, 2);
+  }
+  return [...new Set(ids)].slice(0, 4);
+}
+
+async function fetchDepartures(stopId, apiBase) {
+  const params = new URLSearchParams({
+    duration: String(cfg.lookAheadMinutes),
+    remarks: 'false',
+    includeRelatedStations: 'true',
+    pretty: 'false'
+  });
+  const url = `${apiBase}/stops/${encodeURIComponent(stopId)}/departures?` + params.toString();
+  const res = await fetch(url, {cache: "no-store"});
+  if (!res.ok) throw new Error(`departures ${apiBase} ${stopId}: ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.departures || []);
+}
+
+function normalize(dep) {
+  return {
+    when: dep.when || dep.plannedWhen,
+    line: dep.line?.name || dep.line?.id || '',
+    product: dep.line?.product || dep.line?.mode || '',
+    direction: dep.direction || dep.destination?.name || dep.directionId || '—',
+    cancelled: !!dep.cancelled
+  };
+}
+
+function groupByDirection(deps) {
+  const buses = deps
+    .map(normalize)
+    .filter(d => (d.product || '').toLowerCase() === 'bus' && !d.cancelled && !!d.when);
+
+  buses.sort((a,b)=> new Date(a.when) - new Date(b.when));
+
+  const byDir = new Map();
+  for (const d of buses) {
+    if (!byDir.has(d.direction)) byDir.set(d.direction, []);
+    byDir.get(d.direction).push(d);
+  }
+
+  const dirs = [...byDir.entries()]
+    .sort((a,b)=> new Date(a[1][0]?.when || 0) - new Date(b[1][0]?.when || 0))
+    .slice(0, 2);
+
+  return dirs;
+}
+
+function renderList(container, list) {
+  container.innerHTML = '';
+  if (!list || list.length === 0) {
+    container.innerHTML = `<div class="item"><div class="eta-big">—</div><div class="line-and-dest"><div><span class="badge">—</span><span class="dest">Sin próximos servicios</span></div><div class="sched">—</div></div><div></div></div>`;
+    return;
+  }
+  for (const d of list.slice(0, cfg.maxPerDirection)) {
+    const etaMin = minutesUntil(d.when);
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `
+      <div>
+        <div class="eta-big">${etaMin}</div>
+        <span class="eta-suffix">min</span>
+      </div>
+      <div class="line-and-dest">
+        <div><span class="badge">${(d.line||'').replace(/[^\w\\d]/g,'')}</span><span class="dest">${d.direction}</span></div>
+        <div class="sched">${fmtTime(d.when)}</div>
+      </div>
+    `;
+    container.appendChild(div);
+  }
+}
+
+async function loadFrom(apiBase) {
+  const ids = await findStopIdsByName(cfg.stopQuery, apiBase);
+  const allDepsArrays = await Promise.allSettled(ids.map(id => fetchDepartures(id, apiBase)));
+  const allDeps = allDepsArrays.filter(x => x.status === 'fulfilled').flatMap(x => x.value);
+  return allDeps;
+}
+
+async function loadAll() {
+  try {
+    let deps = await loadFrom(API_PRIMARY);
+    if (!deps || deps.length === 0) deps = await loadFrom(API_FALLBACK);
+    if (!deps || deps.length === 0) throw new Error('Sin datos de salidas en este momento.');
+
+    const dirs = groupByDirection(deps);
+    const [dA, dB] = [dirs[0] || ['Dirección A', []], dirs[1] || ['Dirección B', []]];
+
+    els.dirA.textContent = dA[0];
+    els.dirB.textContent = dB[0];
+
+    renderList(els.listA, dA[1]);
+    renderList(els.listB, dB[1]);
+
+    lastRefreshTs = Date.now();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+loadAll();
+setInterval(loadAll, cfg.refreshMs);
+</script>
+</body>
+</html>
