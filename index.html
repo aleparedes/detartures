@@ -57,11 +57,11 @@
 
     /* Base styles for html and body */
   html, body {
-      height: 100%;                    /* Full height for fixed layout */
-      margin: 0;                       /* Remove default margins */
-      background: #dfe2e6;             /* Light gray background to simulate wall */
-      font-family: var(--font-family); /* Use font from design system */
-      color: var(--color-text-primary); /* Primary text color */
+      height: 100%;
+      margin: 0;
+      background: var(--color-led-bg);
+      font-family: var(--font-family);
+      color: var(--color-text-primary);
     }
 
     /* Hide scrollbars for clean interface */
@@ -86,60 +86,31 @@
     /* ===== MAIN LAYOUT ===== */
     /* Main container that simulates the physical frame of the LED display */
     .departure-board {
-      position: fixed;                    /* Fixed position to occupy full screen */
-      inset: 0;                           /* Equivalent to top:0, right:0, bottom:0, left:0 */
-      display: grid;                      /* Grid layout for 3-row structure */
-      grid-template-rows: var(--header-height) 1fr var(--footer-height); /* Fixed header, flexible content, fixed footer */
-      background: var(--color-frame-bg);  /* Frame background */
-      border: var(--board-padding) solid var(--color-frame-border); /* Frame border */
-      border-radius: var(--space-sm);      /* Rounded corners */
-      box-shadow: 
-        0 12px 30px rgba(0, 0, 0, 0.25), /* Outer shadow for depth */
-        inset 0 -10px 0 rgba(255, 255, 255, 0.6); /* Inner shadow for 3D effect */
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-led-bg);
     }
 
-    /* ===== HEADER SECTION ===== */
-    /* Header with column titles (Linie, Ziel, Abfahrt in) */
+    /* HEADER SECTION - Hidden */
     .board-header {
-      display: grid;                      /* Grid layout to align columns */
-      grid-template-columns: var(--line-width) 1fr auto; /* Fixed line, flexible destination, auto time */
-      align-items: center;                 /* Center vertically */
-      padding: var(--space-sm) var(--space-md) var(--space-xs) var(--space-md); /* Compact padding */
-      font-weight: var(--font-weight-bold); /* Bold weight for headers */
-      font-size: clamp(12px, 1.8vw, 18px); /* Responsive font size */
-    }
-
-    /* Base styles for header columns */
-    .board-header__column {
-      padding-left: var(--space-md);       /* Consistent left padding */
-    }
-
-    /* Center column (Ziel) - left aligned */
-    .board-header__column--center {
-      justify-self: start;                 /* Align to left */
-      padding-left: 0;                    /* No left padding */
-    }
-
-    /* Right column (Abfahrt in) - right aligned */
-    .board-header__column--right {
-      justify-self: end;                   /* Align to right */
-      padding-right: 0;                    /* No right padding */
-      padding-left: 0;                     /* No left padding */
+      display: none;
     }
 
     /* ===== LED DISPLAY SECTION ===== */
     /* Main area that simulates the real LED display with visual effects */
     .led-display {
-      margin: 0 var(--space-md) var(--space-sm) var(--space-md); /* Compact margins */
-      background: var(--color-led-bg);      /* Deep black background like real LED */
-      border: 1px solid var(--color-black); /* Thin black border */
-      border-radius: 1px;                   /* Minimally rounded corners */
-      padding: 1px 0 1px var(--space-sm);   /* Minimal padding for content */
-      display: grid;                        /* Grid for data rows */
-      grid-auto-rows: 1fr;                  /* Equal height rows */
-      position: relative;                   /* Relative position for effects */
-      overflow: hidden;                     /* Hide overflowing content */
-      animation: flicker var(--animation-flicker-duration) infinite alternate; /* LED flicker */
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: var(--color-led-bg);
+      padding: var(--space-lg);
+      position: relative;
+      overflow: hidden;
+      animation: flicker var(--animation-flicker-duration) infinite alternate;
     }
 
     /* LED texture effect with dot pattern */
@@ -185,6 +156,122 @@
     display: flex;
     align-items: center;
       gap: var(--space-xs);
+    }
+
+    /* ===== MODAL ===== */
+    .station-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: var(--color-white);
+      padding: var(--space-xl);
+      border-radius: var(--space-md);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .modal-content h2 {
+      margin: 0 0 var(--space-lg) 0;
+      color: var(--color-text-primary);
+      font-size: 24px;
+      text-align: center;
+    }
+
+    .station-input-container {
+      display: flex;
+      gap: var(--space-sm);
+      align-items: center;
+      margin-bottom: var(--space-md);
+    }
+
+    .autocomplete-wrapper {
+      position: relative;
+      display: inline-block;
+      flex: 1;
+    }
+
+    .station-input {
+      width: 100%;
+      padding: var(--space-sm) var(--space-md);
+      border: 2px solid #cfd3d8;
+      border-radius: var(--space-sm);
+      font-size: 16px;
+      font-family: var(--font-family);
+      background: var(--color-white);
+      color: var(--color-text-primary);
+    }
+
+    .station-input:focus {
+      outline: none;
+      border-color: var(--color-bvg-yellow);
+      box-shadow: 0 0 0 3px rgba(255, 210, 0, 0.2);
+    }
+
+    .suggestions-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--color-white);
+      border: 1px solid #cfd3d8;
+      border-top: none;
+      border-radius: 0 0 var(--space-sm) var(--space-sm);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1001;
+      display: none;
+    }
+
+    .suggestion-item {
+      padding: var(--space-sm) var(--space-md);
+      cursor: pointer;
+      font-size: 14px;
+      font-family: var(--font-family);
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .suggestion-item:hover {
+      background: var(--color-bvg-yellow);
+      color: var(--color-text-primary);
+    }
+
+    .suggestion-item:last-child {
+      border-bottom: none;
+    }
+
+    .update-btn {
+      padding: var(--space-sm) var(--space-md);
+      background: var(--color-bvg-yellow);
+      color: var(--color-text-primary);
+      border: none;
+      border-radius: var(--space-sm);
+      font-size: 16px;
+      font-family: var(--font-family);
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .update-btn:hover {
+      background: #e6c200;
+    }
+
+    .station-info {
+      text-align: center;
+      color: var(--color-text-secondary);
+      font-size: 14px;
+      min-height: 20px;
     }
 
     /* ===== FOOTER ===== */
@@ -355,31 +442,25 @@
 </head>
 
 <body>
-  <div class="departure-board">
-    <header class="board-header">
-      <div class="board-header__column">Linie</div>
-      <div class="board-header__column board-header__column--center">Ziel</div>
-      <div class="board-header__column board-header__column--right">Abfahrt in</div>
-    </header>
-    
-    <main class="led-display" id="ledDisplay">
-      <div class="led-message">Lade Daten...</div>
-    </main>
-    
-    <footer class="board-footer">
+  <!-- Station Selection Modal -->
+  <div id="stationModal" class="station-modal">
+    <div class="modal-content">
+      <h2>Haltestelle auswählen</h2>
       <div class="station-input-container">
         <div class="autocomplete-wrapper">
-          <input type="text" id="stationInput" placeholder="Parada (ej: Alexanderplatz)" value="Rotkopfweg" class="station-input">
+          <input type="text" id="stationInput" placeholder="Parada (ej: Alexanderplatz)" class="station-input">
           <div id="suggestions" class="suggestions-dropdown"></div>
-    </div>
+        </div>
         <button id="updateStationBtn" class="update-btn">Aktualisieren</button>
       </div>
       <div class="station-info" id="stationInfo">Haltestelle wird gesucht...</div>
-      <div class="status-indicator">
-        <span class="refresh-status" id="refreshStatus">Nächste Aktualisierung: 30s</span>
-        <span class="bvg-brand">BVG</span>
     </div>
-    </footer>
+  </div>
+
+  <div class="departure-board">
+    <main class="led-display" id="ledDisplay">
+      <div class="led-message">Lade Daten...</div>
+    </main>
   </div>
 
 <script>
@@ -416,12 +497,12 @@
      * References to main DOM elements
      */
     const DOM = Object.freeze({
-      ledDisplay: document.getElementById('ledDisplay'),     // Main LED container
-      refreshStatus: document.getElementById('refreshStatus'), // Refresh status indicator
-      stationInfo: document.getElementById('stationInfo'),   // Station information
-      stationInput: document.getElementById('stationInput'),  // Station input field
-      updateBtn: document.getElementById('updateStationBtn'), // Update button
-      suggestions: document.getElementById('suggestions')      // Suggestions dropdown
+      ledDisplay: document.getElementById('ledDisplay'),
+      stationModal: document.getElementById('stationModal'),
+      stationInput: document.getElementById('stationInput'),
+      updateBtn: document.getElementById('updateStationBtn'),
+      suggestions: document.getElementById('suggestions'),
+      stationInfo: document.getElementById('stationInfo')
     });
 
     // ===== STATE MANAGEMENT =====
@@ -466,36 +547,14 @@
        * @private
        */
       #updateRefreshStatus() {
-        if (this.#isLoading) {
-          DOM.refreshStatus.textContent = 'Aktualisiere...';
-          DOM.refreshStatus.className = 'refresh-status refresh-status--loading';
-    return;
-  }
-
-        // Update countdown
-        if (this.#refreshCountdown > 0) {
-          this.#refreshCountdown--;
-        } else {
-          this.#refreshCountdown = CONFIG.refreshInterval / 1000; // Reset when it reaches 0
-        }
-
-        // Display countdown
-        const minutes = Math.floor(this.#refreshCountdown / 60);
-        const seconds = this.#refreshCountdown % 60;
-        const timeString = minutes > 0 
-          ? `Nächste Aktualisierung: ${minutes}:${seconds.toString().padStart(2, '0')}`
-          : `Nächste Aktualisierung: ${seconds}s`;
-        
-        DOM.refreshStatus.textContent = timeString;
-        DOM.refreshStatus.className = 'refresh-status';
+        // No UI updates needed - only LED display
       }
 
       /**
        * Sets error state and updates UI
        */
       setError() {
-        DOM.refreshStatus.textContent = 'FEHLER!';
-        DOM.refreshStatus.className = 'refresh-status refresh-status--error';
+        // Error state handled by LED display
       }
 
       /**
@@ -1067,7 +1126,7 @@
       constructor() {
         this.#setupEventListeners();
         this.#startRefreshTimer();
-        this.run();
+        // Don't run automatically - wait for station selection
       }
 
       #setupEventListeners() {
@@ -1099,10 +1158,15 @@
         });
       }
 
+      #startRefreshTimer() {
+        setInterval(() => this.run(), CONFIG.refreshInterval);
+      }
+
       #updateStation() {
         const newStation = DOM.stationInput.value.trim();
         if (newStation && newStation !== CONFIG.stopQuery) {
           CONFIG.stopQuery = newStation;
+          this.#hideModal();
           this.run();
         }
       }
@@ -1161,8 +1225,11 @@
         DOM.suggestions.innerHTML = '';
       }
 
-      #startRefreshTimer() {
-        setInterval(() => this.run(), CONFIG.refreshInterval);
+      /**
+       * Hide the station selection modal
+       */
+      #hideModal() {
+        DOM.stationModal.style.display = 'none';
       }
 
       #calculateLayout() {
