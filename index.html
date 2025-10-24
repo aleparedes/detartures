@@ -24,8 +24,9 @@
       --column-gap: 1px;
       
       --line-width: 120px;
-      --eta-width: 180px;
+      --eta-width: 140px;
       --unit-width: 60px;
+      --destination-extra-chars: 3;
       
       --color-frame-bg: #e7e9ed;
       --color-frame-border: #c3c7cd;
@@ -107,7 +108,7 @@
       justify-content: center;
       align-items: center;
       background: var(--color-led-bg);
-      padding: var(--space-lg);
+      padding: var(--space-xs);
       position: relative;
       overflow: hidden;
       animation: flicker var(--animation-flicker-duration) infinite alternate;
@@ -141,6 +142,7 @@
 
     .departure-row__line {
       padding-left: var(--space-xs);
+      padding-right: var(--space-xs);
       display: flex;
       align-items: center;
       gap: 1px;
@@ -148,14 +150,52 @@
 
     .departure-row__destination {
       overflow: hidden;
+      position: relative;
+    }
+
+    .departure-row__destination.scrollable {
+      overflow: hidden;
+      position: relative;
+    }
+
+    .departure-row__destination.scrollable .scrolling-content {
+      display: inline-block;
+      white-space: nowrap;
+      will-change: transform;
+      position: relative;
+      left: 0;
+      animation: scrollLeft 4s linear infinite;
+    }
+
+    @keyframes scrollLeft {
+      0% {
+        transform: translateX(0);
+      }
+      50% {
+        transform: translateX(-50%);
+      }
+      100% {
+        transform: translateX(-100%);
+      }
     }
 
     .departure-row__eta {
     justify-self: end;
-    padding-right: 0;
+    padding-right: var(--space-xs);
+    padding-left: var(--space-xs);
     display: flex;
     align-items: center;
       gap: var(--space-xs);
+      margin-right: 0;
+    }
+
+    .departure-row.arriving-now {
+      animation: blinkRowFast 0.5s infinite;
+    }
+
+    @keyframes blinkRowFast {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0.3; }
     }
 
     /* ===== MODAL ===== */
@@ -960,6 +1000,12 @@
         const row = document.createElement('div');
         row.className = 'departure-row';
 
+        // Check if arrival time is 0 minutes and add blinking class
+        const minutes = dataProcessor.calculateMinutesUntil(departure.when);
+        if (minutes === 0) {
+          row.classList.add('arriving-now'); // Fast blinking for immediate arrival
+        }
+
         // Line column
         const lineColumn = this.#createLineColumn(departure, dotHeight, fontSize, lineColumnWidth);
         row.appendChild(lineColumn);
@@ -993,20 +1039,67 @@
       #createDestinationColumn(departure, dotHeight, fontSize, destinationWidth) {
         const destinationColumn = document.createElement('div');
         destinationColumn.className = 'departure-row__destination';
-        const truncatedDestination = textUtils.truncateText(
-          departure.direction, 
-          Math.floor(fontSize * CONFIG.textBoost), 
-          destinationWidth - 2
-        );
-        destinationColumn.innerHTML = ledSVG.generateSVG(
-          truncatedDestination, 
-          destinationWidth, 
-          dotHeight, 
-          fontSize, 
-          { clipWidth: destinationWidth - 2, align: 'left' }
-        );
+        
+        const fullText = departure.direction;
+        const textWidth = textUtils.measureTextWidth(fullText, Math.floor(fontSize * CONFIG.textBoost));
+        const availableWidth = destinationWidth - 2;
+        
+        // Activate scroll slightly before content would be cut off
+        const marginBuffer = 100; // pixels buffer before activating scroll
+        if (textWidth > (availableWidth - marginBuffer)) {
+          destinationColumn.classList.add('scrollable');
+          
+          // Create truly infinite text with many repetitions
+          const separator = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0';
+          let infiniteText = '';
+          for (let i = 0; i < 100; i++) {
+            infiniteText += fullText + separator;
+          }
+          
+          // Calculate total width needed for smooth scrolling
+          const separatorWidth = textUtils.measureTextWidth(separator, Math.floor(fontSize * CONFIG.textBoost));
+          const totalTextWidth = textUtils.measureTextWidth(infiniteText, Math.floor(fontSize * CONFIG.textBoost));
+          const svgWidth = Math.max(destinationWidth * 2, totalTextWidth + 100); // Extra padding
+          
+          // Create wrapper div for smooth transform animation
+          const wrapper = document.createElement('div');
+          wrapper.className = 'scrolling-content';
+          
+          // Generate SVG content with proper width
+          const svgContent = ledSVG.generateSVG(
+            infiniteText, 
+            svgWidth, 
+            dotHeight, 
+            fontSize, 
+            { clipWidth: svgWidth, align: 'left' }
+          );
+          
+          wrapper.innerHTML = svgContent;
+          destinationColumn.appendChild(wrapper);
+          
+          // Use CSS animation with very long duration to avoid visible resets
+          const baseSpeed = 150; // pixels per second (5x faster)
+          const animationDuration = totalTextWidth / baseSpeed;
+          wrapper.style.animationDuration = `${animationDuration}s`;
+        } else {
+          // Normal truncated text for shorter destinations
+          const truncatedDestination = textUtils.truncateText(
+            fullText, 
+            Math.floor(fontSize * CONFIG.textBoost), 
+            availableWidth
+          );
+          destinationColumn.innerHTML = ledSVG.generateSVG(
+            truncatedDestination, 
+            destinationWidth, 
+            dotHeight, 
+            fontSize, 
+            { clipWidth: availableWidth, align: 'left' }
+          );
+        }
+        
         return destinationColumn;
       }
+
 
       #createETAColumn(departure, dotHeight, fontSize, etaColumnWidth, unitWidth) {
         const etaColumn = document.createElement('div');
@@ -1239,9 +1332,11 @@
         
         const fontSize = this.#textUtils.calculateFontSize(dotHeight, 0.78);
         const baseEtaWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--eta-width'));
-        const dynamicEtaWidth = Math.max(baseEtaWidth, Math.floor(fontSize * 6));
+        const dynamicEtaWidth = Math.max(baseEtaWidth, Math.floor(fontSize * 4.8));
         
-        const destinationWidth = Math.floor(DOM.ledDisplay.clientWidth - lineColumnWidth - dynamicEtaWidth - 2);
+        // Calculate extra width for 4 additional characters
+        const extraCharWidth = Math.floor(fontSize * CONFIG.textBoost * 0.6 * parseInt(getComputedStyle(document.documentElement).getPropertyValue('--destination-extra-chars')));
+        const destinationWidth = Math.floor(DOM.ledDisplay.clientWidth - lineColumnWidth - dynamicEtaWidth - 6) + extraCharWidth;
 
         return {
           totalHeight,
@@ -1264,8 +1359,7 @@
 
         const layout = this.#calculateLayout();
 
-        // Show loading message
-        this.#renderer.renderMessage("Lade Daten...", false);
+        // Don't show loading message during refresh - keep current display
 
         // Fetch fresh data from API
         this.#state.setLoading(true);
